@@ -707,4 +707,6 @@ class DespensaPanel extends HTMLElement {
   }
 }
 
-customElements.define("despensa-panel", DespensaPanel);
+// Si el módulo se carga dos veces (al cambiar de versión con la página abierta), definir
+// otra vez lanzaría y el panel se quedaría en blanco.
+if (!customElements.get("despensa-panel")) customElements.define("despensa-panel", DespensaPanel);
