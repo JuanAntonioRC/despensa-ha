@@ -17,11 +17,15 @@
         "data": {
           "notificar": "Avisar a estos móviles",
           "hora_resumen": "Hora del resumen diario",
-          "ventana": "«Caduca pronto» son los próximos"
+          "ventana": "«Caduca pronto» son los próximos",
+          "lista_compra": "Lista de la compra",
+          "avisar_acabado": "Avisar cuando algo se acaba"
         },
         "data_description": {
           "notificar": "Resumen diario de lo que caduca y aviso de cada ticket que entra.",
-          "ventana": "Días. El diseño usa 7."
+          "ventana": "Días. El diseño usa 7.",
+          "lista_compra": "Lo que se acaba se añade aquí, y lo que entra por ticket se tacha. Vacío: no se usa.",
+          "avisar_acabado": "Manda un aviso a los móviles de arriba cada vez que un producto llega a cero."
         }
       }
     }
@@ -76,6 +80,10 @@
         "sitio": {
           "name": "Sitio",
           "description": "Sitio"
+        },
+        "foto": {
+          "name": "Foto (URL)",
+          "description": "Solo para productos nuevos"
         }
       }
     },
@@ -191,6 +199,16 @@
         "textos": {
           "name": "Textos",
           "description": "Textos del ticket"
+        }
+      }
+    },
+    "buscar_ean": {
+      "name": "Buscar EAN",
+      "description": "Nombre y foto de un código de barras en Open Food Facts.",
+      "fields": {
+        "ean": {
+          "name": "EAN",
+          "description": "Código de barras"
         }
       }
     }

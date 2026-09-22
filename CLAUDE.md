@@ -6,7 +6,8 @@ Integración HACS (repo custom) que sustituye a Grocy. Dominio `despensa`. Plan 
 
 - `inventario.py`: toda la lógica, **sin HA**. `python3 inventario.py` ejecuta su comprobación. Cualquier regla nueva va aquí con su `assert`.
 - `__init__.py`: guardado (`Store`), servicios, suscripción WebSocket `despensa/subscribe` (manda el estado entero en cada cambio), avisos y panel.
-- `sensor.py`, `config_flow.py` (opciones: móviles, hora del resumen, ventana).
+- `sensor.py`, `config_flow.py` (opciones: móviles, hora del resumen, ventana, lista de la compra, aviso de «se acabó»).
+- `voz.py`: intenciones de Assist y el fichero de frases que se escribe en `custom_sentences/es/` (HA no deja a una integración registrar frases de otra forma). Las frases usan un comodín `{producto}`: no añadir frases genéricas tipo «hay {producto}», que se comerían las de HA («hay luces encendidas»). Probar con `conversation/process` por WebSocket, incluida una frase normal de HA.
 - `frontend/`: `despensa-panel.js`, `despensa-card.js` y lo que comparten en `comun.js`.
 - `scripts/despensa.py`: el lector de tickets que corre en `chatty`. `--test` sin red, `--seco PDF` sin mandar nada.
 

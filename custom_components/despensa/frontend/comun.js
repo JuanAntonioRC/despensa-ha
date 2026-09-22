@@ -109,8 +109,9 @@ export async function llamar(hass, servicio, datos = {}, conRespuesta = false) {
 }
 
 // Foto del producto o, si no hay, sus iniciales sobre el color de hueco.
-export function foto(p, alto) {
-  if (p.foto) return `<img src="${esc(p.foto)}" alt="" loading="lazy" style="width:100%;height:${alto}px;object-fit:contain;display:block;background:#fff">`;
+export function foto(p, alto, diferida = true) {
+  // En los diálogos, sin carga diferida: dentro de una capa fija no llega a dispararse.
+  if (p.foto) return `<img src="${esc(p.foto)}" alt="" ${diferida ? 'loading="lazy"' : ""} style="width:100%;height:${alto}px;object-fit:contain;display:block;background:#fff">`;
   const ini = p.nombre.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join("").toUpperCase();
   return `<div style="height:${alto}px;display:flex;align-items:center;justify-content:center;font:600 ${Math.round(alto / 3.2)}px var(--sans);color:var(--tenue-2);letter-spacing:.02em">${esc(ini)}</div>`;
 }

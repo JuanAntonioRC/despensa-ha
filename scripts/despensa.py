@@ -165,15 +165,21 @@ def ean(mercadona_id, wh):
         return None
 
 
+def por_paquete(desc, slug=""):
+    """Unidades que trae una compra: "...-pack-6" en la tienda o "P6"/"P-6" en el ticket. Si no, 1."""
+    m = re.search(r"pack-(\d+)", slug or "") or re.search(r"\bP-?(\d+)\b", desc)
+    return int(m[1]) if m and 1 < int(m[1]) <= 48 else 1      # ponytail: >48 seria un gramaje, no un pack
+
+
 def candidato(conn, desc, precio, wh=None):
-    """-> {texto, precio, seguro, candidato} para una linea del ticket. Con wh, busca el EAN en la tienda."""
+    """-> {texto, precio, seguro, por_paquete, candidato} para una linea del ticket. Con wh, busca el EAN en la tienda."""
     fila, seguro = emparejar(conn, desc, precio)
     if not fila:
-        return {"texto": desc, "precio": round(precio, 2), "seguro": False, "candidato": None}
+        return {"texto": desc, "precio": round(precio, 2), "seguro": False, "por_paquete": por_paquete(desc), "candidato": None}
     dias, ubic = caducidad(conn, fila[3]) or (0, "Despensa")
     if "ultracongelad" in (fila[1] + fila[2]).lower():    # congelados y frescos comparten nombre de categoria ("Verdura")
         dias, ubic = 365, "Congelador"                     # HA lo lleva al primer sitio que empiece por "Congelador"
-    return {"texto": desc, "precio": round(precio, 2), "seguro": seguro, "candidato": {
+    return {"texto": desc, "precio": round(precio, 2), "seguro": seguro, "por_paquete": por_paquete(desc, fila[2]), "candidato": {
         "nombre": fila[1], "foto": (fila[6] or "").replace("h=300&w=300", "h=600&w=600"),
         "dias": dias if dias > 0 else -1,                  # en la tabla, 0 y -1 son "sin fecha"
         "sitio": ubic, "mercadona_id": fila[0], "unidad": "ud",
@@ -265,7 +271,9 @@ Cnt. Descripción                    P. Unit       Importe
     assert l["seguro"] and l["candidato"]["sitio"] == "Congelador" and l["candidato"]["dias"] == 365, l
     assert l["candidato"]["foto"].endswith("h=600&w=600") and l["candidato"]["ean"] is None   # sin wh no hay red
     assert candidato(c, "LECHE SEMI P6", 5.04)["candidato"]["dias"] == -1    # categoria sin tabla -> sin fecha
-    assert candidato(c, "DOBLE BURGER", 6.0) == {"texto": "DOBLE BURGER", "precio": 6.0, "seguro": False, "candidato": None}
+    assert candidato(c, "DOBLE BURGER", 6.0) == {"texto": "DOBLE BURGER", "precio": 6.0, "seguro": False, "por_paquete": 1, "candidato": None}
+    assert candidato(c, "LECHE SEMI P6", 5.04)["por_paquete"] == 6                 # por la tienda: ...-pack-6
+    assert por_paquete("GRIEGO NATURAL P-6") == 6 and por_paquete("40 B.CIERRA FÁCIL") == 1 and por_paquete("AGUA P250") == 1
     print("ok")
 
 

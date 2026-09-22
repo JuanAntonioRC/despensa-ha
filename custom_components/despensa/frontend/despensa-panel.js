@@ -224,6 +224,7 @@ class DespensaPanel extends HTMLElement {
       this._datos = ev.datos;
       this._ventana = ev.ventana;
       this._puedeDeshacer = ev.puede_deshacer;
+      this._lista = ev.lista;
       this._pintar();
       if (this._capa?.tipo === "ficha" && !this.shadowRoot.activeElement?.closest?.("#capa")) this._pintarCapa();
       if (primera && new URLSearchParams(location.search).get("ver") === "revisar") {
@@ -411,7 +412,7 @@ class DespensaPanel extends HTMLElement {
       html = `
         ${cab(esc(p.nombre))}
         <div style="display:flex;gap:14px;align-items:center">
-          <div style="width:84px;height:84px;border-radius:12px;overflow:hidden;background:var(--hueco);flex:none">${foto(p, 84)}</div>
+          <div style="width:84px;height:84px;border-radius:12px;overflow:hidden;background:var(--hueco);flex:none">${foto(p, 84, false)}</div>
           <div class="meta" style="line-height:1.6">${pv.lotes.length ? `${num(pv.cantidad)} ${esc(p.unidad)} en total` : "Sin stock"}${p.mercadona_id ? `<br>Mercadona ${esc(p.mercadona_id)}` : ""}</div>
         </div>
         ${pv.lotes.length ? `
@@ -432,7 +433,7 @@ class DespensaPanel extends HTMLElement {
           <label class="l">Caduca a los (días)<input class="campo" name="dias" type="number" min="0" value="${p.dias >= 0 ? p.dias : ""}" placeholder="no caduca"></label>
           <label class="l">Foto (URL)<input class="campo" name="foto" value="${esc(p.foto)}"></label>
           <label class="l" style="grid-column:1/-1">Códigos EAN (uno por línea)<textarea class="campo" name="ean">${esc(p.ean.join("\n"))}</textarea></label>
-          <label class="l" style="grid-column:1/-1">Textos del ticket (uno por línea)<textarea class="campo" name="alias">${esc(p.alias.join("\n"))}</textarea></label>
+          <label class="l" style="grid-column:1/-1">Textos del ticket (uno por línea; «= 6» si cada compra trae 6 unidades)<textarea class="campo" name="alias">${esc(p.alias.map((a) => (p.factores?.[a] > 1 ? `${a} = ${p.factores[a]}` : a)).join("\n"))}</textarea></label>
           <label class="check"><input type="checkbox" name="revisar" ${p.revisar ? "checked" : ""}> Por revisar</label>
           <label class="check"><input type="checkbox" name="no_inventariar" ${p.no_inventariar ? "checked" : ""}> No inventariar</label>
         </form>
@@ -450,6 +451,7 @@ class DespensaPanel extends HTMLElement {
           <label class="l">Caduca<input class="campo" name="caduca" type="date" min="${hoyISO()}"></label>
           <label class="l">Sitio<select class="campo" name="sitio"><option value="">el de siempre</option>${this._opcionesSitio(this._sel !== "todo" ? this._sel : "")}</select></label>
           ${c.ean ? `<label class="l">EAN<input class="campo" name="ean" value="${esc(c.ean)}" readonly></label>` : ""}
+          ${c.foto ? `<input type="hidden" name="foto" value="${esc(c.foto)}">` : ""}
         </form>
         <div class="meta">Si el producto ya existe, se suma a lo que hay. Sin fecha, se calcula con sus días de siempre.</div>
         <div class="fila" style="justify-content:flex-end"><button class="pri" data-acc="guardar-nuevo">Guardar</button></div>`;
@@ -475,7 +477,7 @@ class DespensaPanel extends HTMLElement {
         ${cab("Escanear")}
         ${c.leido ? (p ? `
           <div style="display:flex;gap:14px;align-items:center">
-            <div style="width:84px;height:84px;border-radius:12px;overflow:hidden;background:var(--hueco);flex:none">${foto(p, 84)}</div>
+            <div style="width:84px;height:84px;border-radius:12px;overflow:hidden;background:var(--hueco);flex:none">${foto(p, 84, false)}</div>
             <div><div style="font-weight:600;font-size:16px">${esc(p.nombre)}</div>
               <div class="meta">${p.lotes.length ? `${num(p.cantidad)} ${esc(p.unidad)} · ${esc(p.sitioNombre)} · ${p.et.texto}` : "sin stock"}</div></div>
           </div>
@@ -485,10 +487,22 @@ class DespensaPanel extends HTMLElement {
           </div>
           <div class="fila"><button class="sec" style="flex:1" data-acc="ficha" data-id="${p.id}">Ver ficha</button>
             <button class="sec" style="flex:1" data-acc="escanear">Escanear otro</button></div>`
-          : `<div>El código <span class="mono">${esc(c.leido)}</span> no es de ningún producto.</div>
-             <div class="fila"><button class="pri" style="flex:1" data-acc="nuevo" data-ean="${esc(c.leido)}">Añadir producto nuevo</button>
+          : `<div>El código <span class="mono">${esc(c.leido)}</span> no es de ningún producto de casa.</div>
+             ${c.off === undefined ? `<div class="meta">Buscando en Open Food Facts…</div>`
+               : c.off.nombre ? `
+                 <div style="display:flex;gap:14px;align-items:center">
+                   <div style="width:84px;height:84px;border-radius:12px;overflow:hidden;background:var(--hueco);flex:none">${foto(c.off, 84, false)}</div>
+                   <div><div style="font-weight:600;font-size:16px">${esc(c.off.nombre)}</div><div class="meta">según Open Food Facts</div></div>
+                 </div>` : `<div class="meta">Open Food Facts tampoco lo conoce.</div>`}
+             <div class="fila"><button class="pri" style="flex:1" data-acc="nuevo" data-ean="${esc(c.leido)}"
+                data-nombre="${esc(c.off?.nombre || "")}" data-foto="${esc(c.off?.foto || "")}">Añadir producto nuevo</button>
              <button class="sec" style="flex:1" data-acc="escanear">Escanear otro</button></div>
-             <div class="meta">Para asociarlo a un producto que ya existe, pon el código en su ficha.</div>`) : `
+             <form class="bloque" style="gap:8px" id="f-asociar" onsubmit="return false">
+               <label class="l">¿Es de algo que ya tienes? (otro tamaño, otra marca…)
+                 <input class="campo" name="nombre" list="nombres-asoc" autocomplete="off" placeholder="Nombre del producto"></label>
+               <datalist id="nombres-asoc">${Object.values(this._datos.productos).map((p) => `<option value="${esc(p.nombre)}">`).join("")}</datalist>
+               <button class="sec" data-acc="asociar" data-ean="${esc(c.leido)}">Guardar el código en ese producto</button>
+             </form>`) : `
           <video id="video" playsinline muted></video>
           <div class="meta" id="estado-cam">Abriendo la cámara…</div>
           <label class="sec" style="text-align:center">Hacer foto en su lugar
@@ -516,8 +530,15 @@ class DespensaPanel extends HTMLElement {
     this._pararCamara();
     navigator.vibrate?.(60);
     const p = this._v.productos.find((x) => x.ean.includes(codigo));
-    this._capa = { tipo: "escaner", leido: codigo, producto: p };
+    const capa = { tipo: "escaner", leido: codigo, producto: p };
+    this._capa = capa;
     this._pintarCapa();
+    if (!p) {
+      llamar(this._hass, "buscar_ean", { ean: codigo }, true).then((r) => {
+        capa.off = r.ok ? r.respuesta || {} : {};
+        if (this._capa === capa) this._pintarCapa();
+      });
+    }
   }
 
   async _abrirCamara() {
@@ -594,8 +615,13 @@ class DespensaPanel extends HTMLElement {
     const c = this._capa;
     switch (acc) {
       case "sitio": this._sel = id; this._moviendo = null; this._pintar(); break;
-      case "usar": await this._hacer("usar", { producto: id }, `Usado: ${this._nombre(id)}`); if (el.dataset.cerrar !== undefined) this._cerrar(); break;
-      case "acabar": this._moviendo = null; await this._hacer("acabar", { producto: id }, `Se acabó: ${this._nombre(id)}`); break;
+      case "usar": {
+        const ultimo = (this._v.productos.find((x) => x.id === id)?.cantidad ?? 0) <= 1;
+        await this._hacer("usar", { producto: id }, `Usado: ${this._nombre(id)}${ultimo && this._lista ? " · a la lista de la compra" : ""}`);
+        if (el.dataset.cerrar !== undefined) this._cerrar();
+        break;
+      }
+      case "acabar": this._moviendo = null; await this._hacer("acabar", { producto: id }, `Se acabó: ${this._nombre(id)}${this._lista ? " · a la lista de la compra" : ""}`); break;
       case "mover": this._moviendo = this._moviendo === id ? null : id; this._pintar(); break;
       case "mover-a": this._moviendo = null; await this._hacer("mover", { producto: id, sitio: el.dataset.sitio }, `${this._nombre(id)} → ${this._datos.sitios.find((s) => s.id === el.dataset.sitio)?.nombre}`); break;
       case "anadir-uno": await this._hacer("anadir", { producto: id, cantidad: 1 }, `Añadido: ${this._nombre(id)}`); if (el.dataset.cerrar !== undefined) this._cerrar(); break;
@@ -603,7 +629,15 @@ class DespensaPanel extends HTMLElement {
       case "rev-no": await this._hacer("editar_producto", { producto: id, campos: { revisar: false, no_inventariar: true } }, `No se inventaría: ${this._nombre(id)}`); break;
       case "deshacer": this.shadowRoot.getElementById("toast").hidden = true; await this._hacer("deshacer", {}, null); break;
       case "ficha": this._pararCamara(); this._abrir({ tipo: "ficha", id }); break;
-      case "nuevo": this._abrir({ tipo: "nuevo", nombre: el.dataset.nombre, ean: el.dataset.ean }); break;
+      case "nuevo": this._abrir({ tipo: "nuevo", nombre: el.dataset.nombre, ean: el.dataset.ean, foto: el.dataset.foto }); break;
+      case "asociar": {
+        const n = this._capaEl.querySelector("#f-asociar [name=nombre]").value.trim().toLocaleLowerCase("es");
+        const p = Object.values(this._datos.productos).find((x) => x.nombre.toLocaleLowerCase("es") === n);
+        if (!p) { this._toast("Elige un producto de la lista", { error: true }); break; }
+        const r = await this._hacer("editar_producto", { producto: p.id, campos: { ean: [...p.ean, el.dataset.ean] } }, `Código guardado en ${p.nombre}`);
+        if (r.ok) this._abrir({ tipo: "ficha", id: p.id });
+        break;
+      }
       case "escanear": this._abrir({ tipo: "escaner" }); break;
       case "sitios": this._abrir({ tipo: "sitios", lista: this._datos.sitios.map((s) => ({ ...s })) }); break;
       case "cerrar": this._cerrar(); break;
@@ -616,7 +650,9 @@ class DespensaPanel extends HTMLElement {
         const campos = {
           nombre: v("nombre"), sitio: v("sitio") || null, unidad: v("unidad") || "ud",
           dias: v("dias") === "" ? -1 : parseInt(v("dias"), 10), foto: v("foto"),
-          ean: lineas("ean"), alias: lineas("alias"),
+          ean: lineas("ean"),
+          alias: lineas("alias").map((l) => l.replace(/\s*=\s*\d+\s*$/, "")),
+          factores: Object.fromEntries(lineas("alias").map((l) => l.match(/^(.*?)\s*=\s*(\d+)\s*$/)).filter(Boolean).map((m) => [m[1], +m[2]])),
           revisar: f.elements.revisar.checked, no_inventariar: f.elements.no_inventariar.checked,
         };
         if (campos.sitio === null) delete campos.sitio;
@@ -636,6 +672,7 @@ class DespensaPanel extends HTMLElement {
         if (v("caduca")) datos.caduca = v("caduca");
         if (v("sitio")) datos.sitio = v("sitio");
         if (v("ean")) datos.ean = v("ean");
+        if (v("foto")) datos.foto = v("foto");
         const r = await this._hacer("anadir", datos, `Añadido: ${datos.nombre}`);
         if (r.ok) this._cerrar();
         break;

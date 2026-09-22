@@ -4,8 +4,10 @@
 
 Datos (un dict que se guarda tal cual en .storage/despensa):
   sitios     [{id, nombre}]                       el orden de la lista es el orden en pantalla
-  productos  {id: {id, nombre, foto, ean[], alias[], sitio, dias, unidad,
+  productos  {id: {id, nombre, foto, ean[], alias[], factores{alias: n}, sitio, dias, unidad,
                    revisar, no_inventariar, mercadona_id}}
+             factores: unidades que trae cada compra con ese texto de ticket (pack de 6 -> 6);
+             si un alias no está, vale 1.
   lotes      {id: {id, producto, cantidad, sitio, comprado, caduca, abierto}}
   actividad  [{ts, texto, tipo}]                  la más reciente primero, máximo 200
   facturas   [numero]                             tickets ya metidos
@@ -15,6 +17,7 @@ from __future__ import annotations
 
 import copy
 import re
+import unicodedata
 import uuid
 from datetime import date, datetime, timedelta
 
@@ -22,7 +25,7 @@ SITIOS_INICIALES = [
     "Nevera", "Congelador nevera", "Congelador sótano", "Despensa",
     "Armario alto", "Cajón verduras", "Hogar",
 ]
-CAMPOS_EDITABLES = {"nombre", "foto", "ean", "alias", "sitio", "dias", "unidad", "revisar", "no_inventariar"}
+CAMPOS_EDITABLES = {"nombre", "foto", "ean", "alias", "factores", "sitio", "dias", "unidad", "revisar", "no_inventariar"}
 MAX_ACTIVIDAD = 200
 
 
@@ -74,6 +77,29 @@ class Inventario:
     def por_nombre(self, nombre: str) -> dict | None:
         n = nombre.strip().casefold()
         return next((p for p in self.data["productos"].values() if p["nombre"].casefold() == n), None)
+
+    def buscar(self, texto: str, con_stock: bool = True) -> list[dict]:
+        """Productos cuyo nombre contiene todas las palabras dichas (sin tildes, singular a lo bruto).
+
+        Primero los que empiezan por lo dicho y, entre ellos, el de nombre más corto:
+        «leche» prefiere «Leche semidesnatada» a «Arroz con leche».
+        """
+        def palabras(s):
+            s = unicodedata.normalize("NFKD", s).encode("ascii", "ignore").decode().lower()
+            # ponytail: plural a singular quitando -es/-s; vale para «yogures», «huevos», «lonchas»
+            return [re.sub(r"(?<=[^aeiou])es$|s$", "", w) for w in re.findall(r"[a-z0-9]+", s)
+                    if w not in {"el", "la", "los", "las", "un", "una", "unos", "unas", "de", "del", "al"}]
+        buscadas = palabras(texto)
+        if not buscadas:
+            return []
+        hallados = []
+        for p in self.data["productos"].values():
+            if p["no_inventariar"] or (con_stock and not self.lotes_de(p["id"])):
+                continue
+            nombre = palabras(p["nombre"])
+            if all(any(n.startswith(b) for n in nombre) for b in buscadas):
+                hallados.append((not nombre[0].startswith(buscadas[0]), len(p["nombre"]), p))
+        return [p for *_, p in sorted(hallados, key=lambda x: x[:2])]
 
     def sitio_id(self, sitio: str | None) -> str | None:
         """Acepta id o nombre de sitio."""
@@ -148,7 +174,7 @@ class Inventario:
 
     def _nuevo_producto(self, nombre: str, **campos) -> dict:
         p = {
-            "id": nid(), "nombre": nombre.strip(), "foto": "", "ean": [], "alias": [],
+            "id": nid(), "nombre": nombre.strip(), "foto": "", "ean": [], "alias": [], "factores": {},
             "sitio": None, "dias": -1, "unidad": "ud", "revisar": False,
             "no_inventariar": False, "mercadona_id": None,
         }
@@ -170,7 +196,7 @@ class Inventario:
         La regla es la de siempre: el texto del ticket se guarda como alias del producto, así que
         cada producto se revisa como mucho una vez.
         """
-        res = {"repetido": False, "nuevos": 0, "sumados": 0, "ignorados": 0, "revisar": []}
+        res = {"repetido": False, "nuevos": 0, "sumados": 0, "ignorados": 0, "revisar": [], "productos": []}
         if factura in self.data["facturas"]:
             res["repetido"] = True
             return res
@@ -195,11 +221,14 @@ class Inventario:
             texto = alias_normal(ln["texto"])
             cand = ln.get("candidato") or {}
             p = self.por_alias(texto)
+            por_paquete = int(ln.get("por_paquete") or 1)
             if p is None and ln.get("seguro") and cand.get("nombre"):
                 # Otro formato del mismo producto (brick suelto / pack): mismo nombre de catálogo.
                 p = self.por_nombre(cand["nombre"])
                 if p is not None:
                     p["alias"].append(texto)
+                    if por_paquete > 1:
+                        p.setdefault("factores", {})[texto] = por_paquete
             if p is None:
                 p = self._nuevo_producto(
                     cand.get("nombre") or texto.capitalize(),
@@ -207,6 +236,7 @@ class Inventario:
                     alias=[texto], sitio=self.sitio_parecido(cand.get("sitio")),
                     dias=cand.get("dias"), unidad=cand.get("unidad"),
                     mercadona_id=cand.get("mercadona_id"), revisar=not ln.get("seguro"),
+                    factores={texto: por_paquete} if por_paquete > 1 else None,
                 )
                 res["nuevos"] += 1
             if p["revisar"] and p["id"] not in res["revisar"]:
@@ -215,12 +245,14 @@ class Inventario:
                 res["ignorados"] += 1
                 continue
             caduca = (dia + timedelta(days=p["dias"])).isoformat() if p["dias"] >= 0 else None
-            self._nuevo_lote(p, float(ln.get("cantidad") or 1), fecha, caduca, None)
+            factor = p.get("factores", {}).get(texto, 1)
+            self._nuevo_lote(p, float(ln.get("cantidad") or 1) * factor, fecha, caduca, None)
             res["sumados"] += 1
+            res["productos"].append(p["id"])
 
     def anadir(self, *, producto: str | None = None, nombre: str | None = None, cantidad: float = 1,
                caduca: str | None = None, sitio: str | None = None, ean: str | None = None,
-               hoy: date | None = None, quien: str | None = None) -> dict:
+               foto: str | None = None, hoy: date | None = None, quien: str | None = None) -> dict:
         """Añadir a mano. Por id de producto, por EAN o por nombre (si no existe, lo crea)."""
         hoy = hoy or date.today()
         if cantidad <= 0:
@@ -232,7 +264,7 @@ class Inventario:
         if p is None:
             if not nombre:
                 raise ErrorDespensa("Falta el nombre del producto")
-            p = self._nuevo_producto(nombre, sitio=sid, ean=[ean] if ean else None)
+            p = self._nuevo_producto(nombre, sitio=sid, ean=[ean] if ean else None, foto=foto)
         elif ean and ean not in p["ean"]:
             p["ean"].append(ean)
         if not caduca and p["dias"] >= 0:
@@ -292,6 +324,15 @@ class Inventario:
                 otro = self.por_alias(a)
                 if otro and otro["id"] != pid:
                     raise ErrorDespensa(f"«{a}» ya es alias de {otro['nombre']}")
+        if "factores" in campos:
+            try:
+                campos["factores"] = {alias_normal(a): int(n) for a, n in campos["factores"].items() if int(n) != 1}
+            except (TypeError, ValueError):
+                raise ErrorDespensa("Las unidades por paquete tienen que ser números enteros") from None
+            if any(n < 1 for n in campos["factores"].values()):
+                raise ErrorDespensa("Las unidades por paquete tienen que ser 1 o más")
+            alias = campos.get("alias", p["alias"])
+            campos["factores"] = {a: n for a, n in campos["factores"].items() if a in alias}
         if "nombre" in campos and not campos["nombre"].strip():
             raise ErrorDespensa("El nombre no puede quedar vacío")
         self._antes()
@@ -438,4 +479,28 @@ if __name__ == "__main__":
     assert inv.lotes_de(y["id"])[0]["caduca"] == "2026-10-01" and inv.lotes_de(y["id"])[0]["cantidad"] == 4
     inv.editar_lote(lote["id"], {"cantidad": 0})
     assert not inv.lotes_de(y["id"])
+    # Packs: el factor va por texto de ticket; el brick suelto cuenta 1.
+    inv2 = Inventario()
+    pack = {"texto": "LECHE ENTERA P6", "cantidad": 2, "seguro": True, "por_paquete": 6,
+            "candidato": {"nombre": "Leche entera Hacendado", "dias": 90, "sitio": "Despensa"}}
+    brik = {"texto": "LECHE ENTERA", "cantidad": 1, "seguro": True, "candidato": {"nombre": "Leche entera Hacendado"}}
+    r = inv2.registrar_ticket("P1", "2026-09-20", [pack, brik])
+    le = inv2.por_alias("LECHE ENTERA P6")
+    assert r["nuevos"] == 1 and le["factores"] == {"LECHE ENTERA P6": 6} and inv2.por_alias("LECHE ENTERA")["id"] == le["id"]
+    assert sum(l["cantidad"] for l in inv2.lotes_de(le["id"])) == 13
+    inv2.registrar_ticket("P2", "2026-09-21", [{"texto": "LECHE ENTERA P6", "cantidad": 1}])
+    assert sum(l["cantidad"] for l in inv2.lotes_de(le["id"])) == 19
+    inv2.editar_producto(le["id"], {"factores": {"leche entera p6": "4", "LECHE ENTERA": 1, "NO ES ALIAS": 3}})
+    assert le["factores"] == {"LECHE ENTERA P6": 4}
+    try:
+        inv2.editar_producto(le["id"], {"factores": {"LECHE ENTERA P6": 0}}); raise AssertionError
+    except ErrorDespensa:
+        pass
+
+    # Búsqueda por voz: sin tildes, plural, nombre más corto primero, solo con stock.
+    inv2.anadir(nombre="Arroz con leche", hoy=hoy)
+    inv2.anadir(nombre="Yogures de limón", hoy=hoy)
+    assert [p["nombre"] for p in inv2.buscar("la leche")] == ["Leche entera Hacendado", "Arroz con leche"]
+    assert [p["nombre"] for p in inv2.buscar("yogur de limon")] == ["Yogures de limón"]
+    assert inv2.buscar("merluza") == [] and inv2.buscar("los") == []
     print("ok")

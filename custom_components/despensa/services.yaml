@@ -12,6 +12,10 @@ anadir:
     cantidad: {default: 1, selector: {number: {min: 0.001, max: 1000, step: 0.001, mode: box}}}
     caduca: {selector: {date: {}}}
     sitio: {example: "Nevera", selector: {text: {}}}
+    foto: {selector: {text: {}}}
+buscar_ean:
+  fields:
+    ean: {required: true, example: "8480000103819", selector: {text: {}}}
 usar:
   fields:
     producto: {selector: {text: {}}}

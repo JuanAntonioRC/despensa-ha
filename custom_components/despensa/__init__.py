@@ -19,9 +19,11 @@ from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.dispatcher import async_dispatcher_connect, async_dispatcher_send
 from homeassistant.helpers.event import async_track_time_change
+from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.storage import Store
 from homeassistant.util import dt as dt_util
 
+from . import voz
 from .inventario import ErrorDespensa, Inventario, vacio
 
 _LOGGER = logging.getLogger(__name__)
@@ -36,6 +38,8 @@ VERSION = json.loads((Path(__file__).parent / "manifest.json").read_text())["ver
 CONF_VENTANA = "ventana"
 CONF_NOTIFICAR = "notificar"
 CONF_HORA = "hora_resumen"
+CONF_LISTA = "lista_compra"
+CONF_AVISAR_ACABADO = "avisar_acabado"
 DEF_VENTANA = 7
 DEF_HORA = "09:00:00"
 
@@ -48,6 +52,7 @@ class Despensa:
     def __init__(self, hass: HomeAssistant, entry: ConfigEntry, store: Store, data: dict) -> None:
         self.hass, self.entry, self.store = hass, entry, store
         self.inv = Inventario(data)
+        self.recien_a_lista: str | None = None  # para que «Deshacer» también lo saque de la lista
 
     @property
     def ventana(self) -> int:
@@ -56,10 +61,55 @@ class Despensa:
     def resumen(self) -> dict:
         return self.inv.resumen(dt_util.now().date(), self.ventana)
 
+    def resumen_de(self, pid: str) -> int | None:
+        """Días que le quedan al lote más urgente del producto (None si no caduca o no hay)."""
+        lotes = self.inv.lotes_de(pid)
+        caduca = lotes[0]["caduca"] if lotes else None
+        return (date.fromisoformat(caduca) - dt_util.now().date()).days if caduca else None
+
     @callback
     def cambiado(self) -> None:
         self.store.async_delay_save(lambda: self.inv.data, 1)
         async_dispatcher_send(self.hass, SIGNAL)
+
+    @property
+    def lista(self) -> str | None:
+        return self.entry.options.get(CONF_LISTA) or None
+
+    async def _pendientes(self) -> list[dict]:
+        r = await self.hass.services.async_call(
+            "todo", "get_items", {"entity_id": self.lista, "status": ["needs_action"]},
+            blocking=True, return_response=True)
+        return r[self.lista]["items"]
+
+    async def se_acabo(self, nombre: str) -> None:
+        """Algo llegó a cero: a la lista de la compra (si no está ya) y, si se quiere, aviso."""
+        en_lista = False
+        if self.lista:
+            try:
+                if not any(i["summary"].casefold() == nombre.casefold() for i in await self._pendientes()):
+                    await self.hass.services.async_call(
+                        "todo", "add_item", {"entity_id": self.lista, "item": nombre}, blocking=True)
+                    self.recien_a_lista = nombre
+                en_lista = True
+            except Exception as err:  # la lista es un extra: no debe romper «Se acabó»
+                _LOGGER.warning("No se pudo añadir «%s» a %s: %s", nombre, self.lista, err)
+        if self.entry.options.get(CONF_AVISAR_ACABADO):
+            await self.avisar("Se acabó", nombre + (" (añadido a la lista de la compra)" if en_lista else ""))
+
+    async def comprado(self, nombres: list[str]) -> None:
+        """Lo que entra por ticket se tacha de la lista de la compra."""
+        if not self.lista or not nombres:
+            return
+        buscados = {n.casefold() for n in nombres}
+        try:
+            for item in await self._pendientes():
+                if item["summary"].casefold() in buscados:
+                    await self.hass.services.async_call(
+                        "todo", "update_item", {"entity_id": self.lista, "item": item["uid"], "status": "completed"},
+                        blocking=True)
+        except Exception as err:
+            _LOGGER.warning("No se pudo tachar lo comprado en %s: %s", self.lista, err)
 
     async def avisar(self, titulo: str, mensaje: str, url: str = "/despensa") -> None:
         for svc in self.entry.options.get(CONF_NOTIFICAR, []):
@@ -104,7 +154,9 @@ _ESQUEMAS = {
         vol.Optional("cantidad", default=1): vol.Coerce(float),
         vol.Optional("caduca"): vol.Any(None, "", cv.date),
         vol.Optional("sitio"): vol.Any(None, cv.string),
+        vol.Optional("foto"): vol.Any(None, cv.string),
     }),
+    "buscar_ean": vol.Schema({vol.Required("ean"): cv.string}),
     "usar": vol.Schema({
         vol.Exclusive("producto", "que"): cv.string,
         vol.Exclusive("ean", "que"): cv.string,
@@ -135,6 +187,9 @@ async def _servicio(hass: HomeAssistant, call: ServiceCall) -> ServiceResponse:
     inv, q, s = d.inv, await _quien(hass, call), call.service
     if s == "conocidos":  # solo lectura: qué textos del ticket ya son de algún producto
         return {"conocidos": [t for t in call.data["textos"] if inv.por_alias(t)]}
+    if s == "buscar_ean":  # solo lectura
+        return await buscar_ean(hass, call.data["ean"])
+    a_lista, d.recien_a_lista = d.recien_a_lista, None
     datos = dict(call.data)
     resp = None
     try:
@@ -143,11 +198,12 @@ async def _servicio(hass: HomeAssistant, call: ServiceCall) -> ServiceResponse:
             resp = inv.registrar_ticket(datos["factura"], fecha, datos["lineas"], datos["tienda"])
             if not resp["repetido"]:
                 hass.async_create_task(_avisar_ticket(d, datos, resp))
+                hass.async_create_task(d.comprado([inv.data["productos"][pid]["nombre"] for pid in set(resp["productos"])]))
         elif s == "anadir":
             caduca = datos.get("caduca")
             p = inv.anadir(producto=datos.get("producto"), nombre=datos.get("nombre"), ean=datos.get("ean"),
                            cantidad=datos["cantidad"], caduca=caduca.isoformat() if caduca else None,
-                           sitio=datos.get("sitio"), hoy=dt_util.now().date(), quien=q)
+                           sitio=datos.get("sitio"), foto=datos.get("foto"), hoy=dt_util.now().date(), quien=q)
             resp = {"producto": p["id"]}
         elif s == "usar":
             pid = datos.get("producto")
@@ -157,8 +213,11 @@ async def _servicio(hass: HomeAssistant, call: ServiceCall) -> ServiceResponse:
                     raise ErrorDespensa("Ese código no es de ningún producto")
                 pid = p["id"]
             inv.usar(pid, datos["cantidad"], q)
+            if not inv.lotes_de(pid):
+                hass.async_create_task(d.se_acabo(inv.producto(pid)["nombre"]))
         elif s == "acabar":
             inv.acabar(datos["producto"], q)
+            hass.async_create_task(d.se_acabo(inv.producto(datos["producto"])["nombre"]))
         elif s == "mover":
             inv.mover(datos["producto"], datos["sitio"], q)
         elif s == "editar_producto":
@@ -171,6 +230,9 @@ async def _servicio(hass: HomeAssistant, call: ServiceCall) -> ServiceResponse:
             inv.guardar_sitios(datos["sitios"], q)
         elif s == "deshacer":
             inv.deshacer()
+            if a_lista and d.lista:
+                hass.async_create_task(hass.services.async_call(
+                    "todo", "remove_item", {"entity_id": d.lista, "item": a_lista}, blocking=True))
         elif s == "importar":
             inv.importar(datos["datos"])
     except ErrorDespensa as err:
@@ -189,6 +251,27 @@ async def _avisar_ticket(d: Despensa, datos: dict, res: dict) -> None:
         msg += f", {len(nombres)} por revisar: " + ", ".join(nombres[:5]) + ("…" if len(nombres) > 5 else "")
         url = "/despensa?ver=revisar"
     await d.avisar(titulo, msg, url)
+
+
+async def buscar_ean(hass: HomeAssistant, ean: str) -> dict:
+    """Nombre y foto de un EAN desconocido en Open Food Facts. Vacío si no está o no responde."""
+    if not ean.isdigit():
+        return {}
+    url = f"https://world.openfoodfacts.org/api/v2/product/{ean}.json?fields=product_name,product_name_es,brands,image_front_url"
+    try:
+        async with async_get_clientsession(hass).get(
+                url, timeout=8, headers={"User-Agent": f"despensa-ha/{VERSION} (github.com/JuanAntonioRC/despensa-ha)"}) as r:
+            if r.status != 200:
+                return {}
+            p = (await r.json()).get("product") or {}
+    except Exception as err:
+        _LOGGER.info("Open Food Facts no respondió para %s: %s", ean, err)
+        return {}
+    nombre = (p.get("product_name_es") or p.get("product_name") or "").strip()
+    marca = (p.get("brands") or "").split(",")[0].strip()
+    if marca and marca.casefold() not in nombre.casefold():
+        nombre = f"{nombre} {marca}".strip()
+    return {"nombre": nombre, "foto": p.get("image_front_url") or ""} if nombre else {}
 
 
 def resumen_diario(res: dict) -> str | None:
@@ -224,6 +307,7 @@ def _ws_subscribe(hass: HomeAssistant, connection: websocket_api.ActiveConnectio
             "datos": d.inv.data,
             "puede_deshacer": d.inv._anterior is not None,
             "ventana": d.ventana,
+            "lista": d.lista,
         }))
 
     connection.subscriptions[msg["id"]] = async_dispatcher_connect(hass, SIGNAL, enviar)
@@ -239,6 +323,7 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
         [StaticPathConfig(STATIC_URL, str(FRONTEND), cache_headers=False)]
     )
     websocket_api.async_register_command(hass, _ws_subscribe)
+    voz.async_registrar(hass, _despensa)
 
     async def manejar(call: ServiceCall) -> ServiceResponse:
         return await _servicio(hass, call)
@@ -246,7 +331,7 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
     for nombre, esquema in _ESQUEMAS.items():
         hass.services.async_register(
             DOMAIN, nombre, manejar, schema=esquema,
-            supports_response=(SupportsResponse.ONLY if nombre == "conocidos"
+            supports_response=(SupportsResponse.ONLY if nombre in ("conocidos", "buscar_ean")
                                else SupportsResponse.OPTIONAL if nombre in ("registrar_ticket", "anadir")
                                else SupportsResponse.NONE),
         )
@@ -273,6 +358,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         require_admin=False,
     )
     frontend.add_extra_js_url(hass, f"{STATIC_URL}/despensa-card.js?v={VERSION}")
+    try:
+        await voz.async_poner_frases(hass)
+    except OSError as err:  # sin frases no hay voz, pero el resto funciona
+        _LOGGER.warning("No se pudieron escribir las frases de Assist: %s", err)
 
     hora = time.fromisoformat(entry.options.get(CONF_HORA, DEF_HORA))
 
@@ -295,6 +384,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
 async def _opciones_cambiadas(hass: HomeAssistant, entry: ConfigEntry) -> None:
     await hass.config_entries.async_reload(entry.entry_id)
+
+
+async def async_remove_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    await voz.async_quitar_frases(hass)
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
