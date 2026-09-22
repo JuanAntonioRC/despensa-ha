@@ -104,10 +104,10 @@ const CSS = `
   .form { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px }
   label.l { display:flex; flex-direction:column; gap:5px; font-size:12px; color:var(--tenue); font-weight:500 }
   label.l .campo { font-size:16px; padding:9px 11px; color:var(--texto) }
-  textarea.campo { resize:vertical; min-height:62px; font-family:var(--mono); font-size:13px }
+  textarea.campo { resize:vertical; min-height:62px; font-family:var(--mono); font-size:16px } /* menos de 16 px: iOS hace zoom al enfocar */
   .check { display:flex; gap:8px; align-items:center; font-size:14px }
   .lote { display:grid; grid-template-columns:80px 1fr 1fr auto; gap:8px; align-items:center; background:var(--tarjeta); border:1px solid var(--borde); border-radius:10px; padding:8px }
-  .lote .campo { padding:7px 8px; font-size:15px }
+  .lote .campo { padding:7px 8px; font-size:16px }
   .peligro { color:var(--rojo) !important; border-color:var(--rojo-bg) !important }
   video { width:100%; border-radius:12px; background:#000; aspect-ratio:4/3; object-fit:cover }
   .fila-sitio { display:flex; gap:6px; align-items:center }
