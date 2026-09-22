@@ -1,0 +1,47 @@
+registrar_ticket:
+  fields:
+    factura: {required: true, example: "2026-09-16-1234", selector: {text: {}}}
+    fecha: {required: true, example: "2026-09-16", selector: {date: {}}}
+    tienda: {example: "Mercadona", selector: {text: {}}}
+    lineas: {required: true, selector: {object: {}}}
+anadir:
+  fields:
+    producto: {selector: {text: {}}}
+    nombre: {example: "Yogur natural", selector: {text: {}}}
+    ean: {selector: {text: {}}}
+    cantidad: {default: 1, selector: {number: {min: 0.001, max: 1000, step: 0.001, mode: box}}}
+    caduca: {selector: {date: {}}}
+    sitio: {example: "Nevera", selector: {text: {}}}
+usar:
+  fields:
+    producto: {selector: {text: {}}}
+    ean: {selector: {text: {}}}
+    cantidad: {default: 1, selector: {number: {min: 0.001, max: 1000, step: 0.001, mode: box}}}
+acabar:
+  fields:
+    producto: {required: true, selector: {text: {}}}
+mover:
+  fields:
+    producto: {required: true, selector: {text: {}}}
+    sitio: {required: true, selector: {text: {}}}
+editar_producto:
+  fields:
+    producto: {required: true, selector: {text: {}}}
+    campos: {required: true, selector: {object: {}}}
+editar_lote:
+  fields:
+    lote: {required: true, selector: {text: {}}}
+    campos: {required: true, selector: {object: {}}}
+borrar_producto:
+  fields:
+    producto: {required: true, selector: {text: {}}}
+guardar_sitios:
+  fields:
+    sitios: {required: true, selector: {object: {}}}
+conocidos:
+  fields:
+    textos: {required: true, selector: {object: {}}}
+deshacer:
+importar:
+  fields:
+    datos: {required: true, selector: {object: {}}}

@@ -1,6 +1,198 @@
 {
   "config": {
-    "step": {"user": {"title": "Despensa", "description": "Añade el panel Despensa a la barra lateral."}},
-    "abort": {"already_configured": "La despensa ya está configurada."}
+    "step": {
+      "user": {
+        "title": "Despensa",
+        "description": "Añade el panel Despensa a la barra lateral."
+      }
+    },
+    "abort": {
+      "already_configured": "La despensa ya está configurada."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Despensa",
+        "data": {
+          "notificar": "Avisar a estos móviles",
+          "hora_resumen": "Hora del resumen diario",
+          "ventana": "«Caduca pronto» son los próximos"
+        },
+        "data_description": {
+          "notificar": "Resumen diario de lo que caduca y aviso de cada ticket que entra.",
+          "ventana": "Días. El diseño usa 7."
+        }
+      }
+    }
+  },
+  "services": {
+    "registrar_ticket": {
+      "name": "Registrar ticket",
+      "description": "Mete un ticket entero. Lo llama despensa.py desde chatty.",
+      "fields": {
+        "factura": {
+          "name": "Factura",
+          "description": "Factura"
+        },
+        "fecha": {
+          "name": "Fecha",
+          "description": "Fecha"
+        },
+        "tienda": {
+          "name": "Tienda",
+          "description": "Tienda"
+        },
+        "lineas": {
+          "name": "Líneas",
+          "description": "Líneas"
+        }
+      }
+    },
+    "anadir": {
+      "name": "Añadir",
+      "description": "Añade a mano, por producto, EAN o nombre.",
+      "fields": {
+        "producto": {
+          "name": "Producto (id)",
+          "description": "Producto (id)"
+        },
+        "nombre": {
+          "name": "Nombre",
+          "description": "Nombre"
+        },
+        "ean": {
+          "name": "EAN",
+          "description": "EAN"
+        },
+        "cantidad": {
+          "name": "Cantidad",
+          "description": "Cantidad"
+        },
+        "caduca": {
+          "name": "Caduca",
+          "description": "Caduca"
+        },
+        "sitio": {
+          "name": "Sitio",
+          "description": "Sitio"
+        }
+      }
+    },
+    "usar": {
+      "name": "He usado",
+      "description": "Gasta del lote que caduca antes.",
+      "fields": {
+        "producto": {
+          "name": "Producto (id)",
+          "description": "Producto (id)"
+        },
+        "ean": {
+          "name": "EAN",
+          "description": "EAN"
+        },
+        "cantidad": {
+          "name": "Cantidad",
+          "description": "Cantidad"
+        }
+      }
+    },
+    "acabar": {
+      "name": "Se acabó",
+      "description": "Quita todo el stock del producto.",
+      "fields": {
+        "producto": {
+          "name": "Producto (id)",
+          "description": "Producto (id)"
+        }
+      }
+    },
+    "mover": {
+      "name": "Mover",
+      "description": "Cambia de sitio el producto.",
+      "fields": {
+        "producto": {
+          "name": "Producto (id)",
+          "description": "Producto (id)"
+        },
+        "sitio": {
+          "name": "Sitio",
+          "description": "Sitio"
+        }
+      }
+    },
+    "editar_producto": {
+      "name": "Editar producto",
+      "description": "Cambia campos del producto.",
+      "fields": {
+        "producto": {
+          "name": "Producto (id)",
+          "description": "Producto (id)"
+        },
+        "campos": {
+          "name": "Campos",
+          "description": "Campos"
+        }
+      }
+    },
+    "borrar_producto": {
+      "name": "Borrar producto",
+      "description": "Borra un producto y sus lotes (para duplicados).",
+      "fields": {
+        "producto": {
+          "name": "Producto (id)",
+          "description": "Producto (id)"
+        }
+      }
+    },
+    "guardar_sitios": {
+      "name": "Guardar sitios",
+      "description": "Sustituye la lista de sitios.",
+      "fields": {
+        "sitios": {
+          "name": "Sitios",
+          "description": "Sitios"
+        }
+      }
+    },
+    "deshacer": {
+      "name": "Deshacer",
+      "description": "Deshace el último cambio.",
+      "fields": {}
+    },
+    "importar": {
+      "name": "Importar",
+      "description": "Carga todo de una vez (solo con la despensa vacía).",
+      "fields": {
+        "datos": {
+          "name": "Datos",
+          "description": "Datos"
+        }
+      }
+    },
+    "editar_lote": {
+      "name": "Corregir lote",
+      "description": "Fecha del envase, cantidad, sitio o abierto.",
+      "fields": {
+        "lote": {
+          "name": "Lote (id)",
+          "description": "Lote (id)"
+        },
+        "campos": {
+          "name": "Campos",
+          "description": "Campos"
+        }
+      }
+    },
+    "conocidos": {
+      "name": "Textos conocidos",
+      "description": "De una lista de textos del ticket, devuelve los que ya son de algún producto.",
+      "fields": {
+        "textos": {
+          "name": "Textos",
+          "description": "Textos del ticket"
+        }
+      }
+    }
   }
 }

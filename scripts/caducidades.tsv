@@ -1,0 +1,177 @@
+# Caducidad por categoria de Mercadona, contada desde el dia de compra y con el envase cerrado.
+# Aproximada: sirve para avisar, no es la fecha del envase.
+#
+# categoria  -> nombre de la categoria de 2º nivel, o "categoria/subcategoria" para afinar una sola.
+#               La subcategoria gana a la categoria.
+# dias       -> -1 = no caduca (no alimento, o dura tanto que no merece aviso).
+# ubicacion  -> Nevera | Despensa | Congelador | Hogar
+#
+# Solo se aplica al CREAR el producto en Grocy. Cambiar un valor aqui no toca los productos que ya
+# existen: esos se corrigen en Grocy (ficha del producto > "Días de consumo preferente por defecto").
+#
+# categoria	dias	ubicacion
+Aceite, vinagre y sal	-1	Despensa
+Aceitunas y encurtidos	365	Despensa
+Acondicionador y mascarilla	-1	Hogar
+Afeitado y cuidado para hombre	-1	Hogar
+Agua	365	Despensa
+Alimentación infantil	180	Despensa
+Arreglos	7	Nevera
+Arroz y pasta	365	Congelador
+Arroz	-1	Despensa
+Atún y otras conservas de pescado	-1	Despensa
+Aves y jamón cocido	10	Nevera
+Aves y pollo	3	Nevera
+Azúcar y edulcorante	-1	Despensa
+Bacón y salchichas	21	Nevera
+Bases de maquillaje y corrector	-1	Hogar
+Berberechos y mejillones	-1	Despensa
+Biberón y chupete	-1	Hogar
+Bífidus	21	Nevera
+Bollería de horno	3	Despensa
+Bollería envasada	60	Despensa
+Cacao soluble y chocolate a la taza	365	Despensa
+Café cápsula y monodosis	365	Despensa
+Café molido y en grano	365	Despensa
+Café soluble y otras bebidas	365	Despensa
+Carne	3	Nevera
+Carne congelada	180	Congelador
+Cerdo	3	Nevera
+Cereales	180	Despensa
+Cerveza sin alcohol	180	Despensa
+Cerveza	180	Despensa
+Champú	-1	Hogar
+Chicles y caramelos	365	Despensa
+Chocolate	180	Despensa
+Chopped y mortadela	15	Nevera
+Coloración cabello	-1	Hogar
+Colorete y polvos	-1	Hogar
+Conejo y cordero	3	Nevera
+Conservas de verdura y frutas	-1	Despensa
+Cuidado corporal	-1	Hogar
+Cuidado e higiene facial	-1	Hogar
+Depilación	-1	Hogar
+Desodorante	-1	Hogar
+Detergente y suavizante ropa	-1	Hogar
+Embutido curado	60	Despensa
+Embutido	15	Nevera
+Empanados y elaborados	5	Nevera
+Empanados y elaborados/Empanados y rebozados congelados	180	Congelador
+Especias	-1	Despensa
+Estropajo, bayeta y guantes	-1	Hogar
+Fijación cabello	-1	Hogar
+Fitoterapia	-1	Hogar
+Flan y natillas	20	Nevera
+Fruta variada	180	Despensa
+Fruta y verdura	7	Nevera
+Fruta y verdura/Patatas	21	Despensa
+Fruta	7	Despensa
+Fruta/Cítricos	14	Despensa
+Fruta/Manzana y pera	14	Nevera
+Fruta/Plátano y uva	5	Despensa
+Frutos secos y fruta desecada	180	Despensa
+Galletas	180	Despensa
+Gato	-1	Hogar
+Gazpacho y cremas	10	Nevera
+Gel y jabón de manos	-1	Hogar
+Gelatina y otros postres	15	Nevera
+Golosinas	365	Despensa
+Hamburguesas y picadas	3	Nevera
+Harina y preparado repostería	180	Despensa
+Harina y preparado repostería/Masas	15	Nevera
+Helados	365	Congelador
+Hielo	-1	Congelador
+Higiene bucal	-1	Hogar
+Higiene íntima	-1	Hogar
+Higiene y cuidado	-1	Hogar
+Huevos	21	Nevera
+Insecticida y ambientador	-1	Hogar
+Isotónico y energético	180	Despensa
+Jamón serrano	30	Nevera
+Labios	-1	Hogar
+Leche y bebidas vegetales	90	Despensa
+Leche y bebidas vegetales/Batidos	60	Despensa
+Lechuga y ensalada preparada	5	Nevera
+Legumbres	-1	Despensa
+Lejía y líquidos fuertes	-1	Hogar
+Licores	-1	Despensa
+Limpiacristales	-1	Hogar
+Limpiahogar y friegasuelos	-1	Hogar
+Limpieza baño y WC	-1	Hogar
+Limpieza cocina	-1	Hogar
+Limpieza muebles y multiusos	-1	Hogar
+Limpieza vajilla	-1	Hogar
+Listo para Comer	2	Nevera
+Manicura y pedicura	-1	Hogar
+Mantequilla y margarina	60	Nevera
+Mantequilla y margarina/Nata	30	Nevera
+Marisco	3	Nevera
+Mayonesa, ketchup y mostaza	180	Despensa
+Melocotón y piña	-1	Despensa
+Menaje y conservación de alimentos	-1	Hogar
+Mermelada y miel	365	Despensa
+Naranja	14	Despensa
+Ojos	-1	Hogar
+Otras salsas	180	Despensa
+Otros	-1	Hogar
+Pan de horno	2	Despensa
+Pan de molde y otras especialidades	10	Despensa
+Pan tostado y rallado	180	Despensa
+Papel higiénico y celulosa	-1	Hogar
+Parafarmacia	-1	Hogar
+Pasta y fideos	-1	Despensa
+Pasta y fideos/Pasta rellena	21	Nevera
+Patatas fritas y snacks	90	Despensa
+Paté y sobrasada	60	Despensa
+Perfume y colonia	-1	Hogar
+Perro	-1	Hogar
+Pescado fresco	2	Nevera
+Pescado	180	Congelador
+Picos, rosquilletas y picatostes	90	Despensa
+Pilas y bolsas de basura	-1	Hogar
+Pinceles y brochas	-1	Hogar
+Pizzas	180	Congelador
+Pizzas/Pizzas refrigeradas	10	Nevera
+Pizzas/Roscas, quiche y baguettes	10	Nevera
+Platos preparados calientes	7	Nevera
+Platos preparados calientes/Platos de cuchara	365	Despensa
+Platos preparados fríos	5	Nevera
+Postres de soja	20	Nevera
+Protector solar y aftersun	-1	Hogar
+Queso curado, semicurado y tierno	60	Nevera
+Queso lonchas, rallado y en porciones	30	Nevera
+Queso untable, fresco y especialidades	20	Nevera
+Rebozados	180	Congelador
+Refresco de cola	180	Despensa
+Refresco de naranja y de limón	180	Despensa
+Refresco de té y sin gas	180	Despensa
+Salazones y ahumados	21	Nevera
+Sidra y cava	365	Despensa
+Sopa y caldo	365	Despensa
+Tartas y churros	180	Congelador
+Tartas y pasteles	3	Nevera
+Té e infusiones	365	Despensa
+Tinto de verano y sangría	365	Despensa
+Toallitas y pañales	-1	Hogar
+Tomate y otros sabores	365	Despensa
+Tomate	365	Despensa
+Tónica y bitter	180	Despensa
+Tortitas	90	Despensa
+Utensilios de limpieza y calzado	-1	Hogar
+Vacuno	3	Nevera
+Velas y decoración	-1	Hogar
+Verdura	7	Nevera
+Verdura/Cebolla y ajo	30	Despensa
+Verdura/Patata	21	Despensa
+Verdura/Hierbas aromáticas	5	Nevera
+Verdura/Setas y champiñones	4	Nevera
+Verdura/Verduras al vapor	10	Nevera
+Vino blanco	-1	Despensa
+Vino lambrusco y espumoso	-1	Despensa
+Vino rosado	-1	Despensa
+Vino tinto	-1	Despensa
+Yogures desnatados	21	Nevera
+Yogures griegos	21	Nevera
+Yogures líquidos	21	Nevera
+Yogures naturales y sabores	21	Nevera
+Yogures y postres infantiles	21	Nevera
