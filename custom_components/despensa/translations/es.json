@@ -1,0 +1,6 @@
+{
+  "config": {
+    "step": {"user": {"title": "Despensa", "description": "Añade el panel Despensa a la barra lateral."}},
+    "abort": {"already_configured": "La despensa ya está configurada."}
+  }
+}
