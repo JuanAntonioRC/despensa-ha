@@ -1,6 +1,6 @@
 # despensa-ha
 
-Integración HACS (repo custom) que sustituye a Grocy. Dominio `despensa`. Plan completo y registro de avance en la wiki: https://outline.jarclab.com/doc/despensa-en-home-assistant-plan-ur2hknNWXD — actualizar el registro en cada paso.
+Integración HACS (repo custom). Sustituyó a Grocy, que se retiró entero el 2026-09-22 (el script de migración está en el historial de git, commit de la v0.1.0). Dominio `despensa`. Plan completo y registro de avance en la wiki: https://outline.jarclab.com/doc/despensa-en-home-assistant-plan-ur2hknNWXD — actualizar el registro en cada paso.
 
 ## Dónde está cada cosa
 

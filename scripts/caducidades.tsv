@@ -6,8 +6,8 @@
 # dias       -> -1 = no caduca (no alimento, o dura tanto que no merece aviso).
 # ubicacion  -> Nevera | Despensa | Congelador | Hogar
 #
-# Solo se aplica al CREAR el producto en Grocy. Cambiar un valor aqui no toca los productos que ya
-# existen: esos se corrigen en Grocy (ficha del producto > "Días de consumo preferente por defecto").
+# Solo se aplica al CREAR el producto. Cambiar un valor aqui no toca los productos que ya existen:
+# esos se corrigen en su ficha del panel Despensa ("Caduca a los (dias)").
 #
 # categoria	dias	ubicacion
 Aceite, vinagre y sal	-1	Despensa

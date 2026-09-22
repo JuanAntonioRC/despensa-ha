@@ -30,7 +30,6 @@ max: 6
 ## Scripts
 
 - `scripts/despensa.py`: lee el ticket digital de Mercadona (Gmail) y lo manda a `despensa.registrar_ticket`. Corre en otra máquina con `pdftotext`, `mercadona.db` y `caducidades.tsv`.
-- `scripts/migrar_grocy.py`: pasa todo desde Grocy, una sola vez.
 - `scripts/crear_usuario_ha.py`: crea el usuario de HA no administrador que usa el lector de tickets.
 
 ## Terceros
